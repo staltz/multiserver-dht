@@ -3,16 +3,22 @@ var swarm = require('discovery-swarm');
 
 function createPeer(_opts, onError) {
   var swarmOpts = _opts || {};
+  swarmOpts.dns = false;
+
   if (!swarmOpts.key) {
     onError(new Error('multiserver-dht is missing a `key` config'));
     return;
   }
-  swarmOpts.port = swarmOpts.port || 8007;
-  swarmOpts.dns = false;
+  var key = swarmOpts.key;
+  swarmOpts.key = void 0;
 
-  var sw = swarm();
-  sw.listen(swarmOpts.port);
-  sw.join(swarmOpts.key, {}, err => {
+  swarmOpts.port = swarmOpts.port || 8007;
+  var port = swarmOpts.port;
+  swarmOpts.port = void 0;
+
+  var sw = swarm(swarmOpts);
+  sw.listen(port);
+  sw.join(key, {}, err => {
     if (err) {
       onError(err);
       sw.close();
