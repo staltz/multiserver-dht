@@ -6,6 +6,7 @@ var ms = MultiServer([Dht({ key: 'japan' })]);
 
 ms.client('dht:japan', function(err, stream) {
   console.log('client got hold of a connection');
+  console.log(stream);
   pull(
     pull.values(['alice', 'bob']),
     stream,

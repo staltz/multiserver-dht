@@ -28,8 +28,8 @@ module.exports = function makePlugin(opts) {
     server: function(onConnection, onError) {
       var peer = createPeer(opts, onError);
       if (!peer) return;
-      peer.on('connection', stream => {
-        onConnection(toPull.duplex(stream));
+      peer.on('connection', (stream, info) => {
+        onConnection(toPull.duplex(stream), info);
       });
       return function() {
         peer.close();
