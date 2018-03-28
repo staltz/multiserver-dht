@@ -5,15 +5,14 @@ function createPeer(_opts, onError) {
   var swarmOpts = _opts || {};
   swarmOpts.dns = false;
 
-  if (!swarmOpts.key) {
+  var key = swarmOpts.key;
+  if (!key) {
     onError(new Error('multiserver-dht is missing a `key` config'));
     return;
   }
-  var key = swarmOpts.key;
   swarmOpts.key = void 0;
 
-  swarmOpts.port = swarmOpts.port || 8007;
-  var port = swarmOpts.port;
+  var port = swarmOpts.port || 8007;
   swarmOpts.port = void 0;
 
   var sw = swarm(swarmOpts);
