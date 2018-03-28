@@ -3,17 +3,17 @@ var swarm = require('discovery-swarm');
 
 function createPeer(_opts, onError) {
   var swarmOpts = _opts || {};
-  swarmOpts.dns = false;
+  swarmOpts.dns = typeof swarmOpts.dns === 'undefined' ? false : swarmOpts.dns;
 
   var key = swarmOpts.key;
   if (!key) {
     onError(new Error('multiserver-dht is missing a `key` config'));
     return;
   }
-  swarmOpts.key = void 0;
+  delete swarmOpts.key;
 
   var port = swarmOpts.port || 8007;
-  swarmOpts.port = void 0;
+  delete swarmOpts.port;
 
   var sw = swarm(swarmOpts);
   sw.listen(port);
@@ -24,6 +24,12 @@ function createPeer(_opts, onError) {
     }
   });
   return sw;
+}
+
+function copyIfDefined(propName, origin, destination) {
+  if (typeof origin[propName] !== 'undefined') {
+    destination[propName] = origin[propName];
+  }
 }
 
 module.exports = function makePlugin(opts) {
@@ -43,6 +49,9 @@ module.exports = function makePlugin(opts) {
 
     client: function(x, cb) {
       var clientOpts = typeof x === 'string' ? this.parse(x) : x;
+      ['id', 'dns', 'dht', 'utp', 'tcp', 'port'].forEach(name => {
+        copyIfDefined(name, opts, clientOpts);
+      });
       var peer = createPeer(clientOpts, cb);
       if (!peer) return;
       var connected = false;
