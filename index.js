@@ -46,10 +46,10 @@ module.exports = function makePlugin(opts) {
       var peer = createPeer(clientOpts, cb);
       if (!peer) return;
       var connected = false;
-      peer.on('connection', stream => {
+      peer.on('connection', (stream, info) => {
         if (!connected) {
           connected = true;
-          cb(null, toPull.duplex(stream));
+          cb(null, toPull.duplex(stream), info);
         }
       });
     },
