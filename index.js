@@ -28,7 +28,7 @@ function createPeer(_opts, onError) {
 
 module.exports = function makePlugin(opts) {
   return {
-    name: 'worker',
+    name: 'dht',
 
     server: function(onConnection, onError) {
       var peer = createPeer(opts, onError);
