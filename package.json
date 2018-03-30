@@ -1,8 +1,12 @@
 {
   "name": "multiserver-dht",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A multiserver plugin that uses a Distributed Hash Table",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/staltz/multiserver-dht.git"
+  },
   "scripts": {
     "test": "tape test.js"
   },
