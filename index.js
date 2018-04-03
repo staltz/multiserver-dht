@@ -66,7 +66,7 @@ module.exports = function makePlugin(opts) {
     // MUST be dht:<key>
     parse: function(address) {
       var parts = address.split(':');
-      if (parts.length !== 2) return null;
+      if (parts.length < 2) return null;
       var name = parts[0];
       var key = parts[1];
       if (name !== 'dht') return null;
