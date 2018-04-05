@@ -83,7 +83,11 @@ module.exports = function makePlugin(opts) {
       peer.join(channel, {}, closeOnError);
       peer.on('connection', listener);
       peer.on('connection-closed', (conn, info) => {
-        if (info.channel && info.channel.toString('ascii') === channel) {
+        if (
+          connected &&
+          info.channel &&
+          info.channel.toString('ascii') === channel
+        ) {
           connected = false;
           closeOnError(new Error('connection lost, channel: ' + channel));
         }
