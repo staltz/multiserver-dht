@@ -33,18 +33,21 @@ module.exports = function makePlugin(opts) {
         return;
       }
       if (!peer) peer = createPeer(opts, onError);
+      var listener = (stream, info) => {
+        onConnection(toPull.duplex(stream), info);
+      };
+      var close = () => {
+        peer.removeListener('connection', listener);
+        peer.leave(channel);
+      };
       peer.join(channel, {}, err => {
         if (err) {
           onError(err);
-          peer.leave(channel);
+          close();
         }
       });
-      peer.on('connection', (stream, info) => {
-        onConnection(toPull.duplex(stream), info);
-      });
-      return function() {
-        peer.leave(channel);
-      };
+      peer.on('connection', listener);
+      return close;
     },
 
     client: function(x, cb) {
@@ -59,17 +62,30 @@ module.exports = function makePlugin(opts) {
         return;
       }
       if (!peer) peer = createPeer(clientOpts, cb);
-      peer.join(channel, {}, err => {
-        if (err) {
-          cb(err);
-          peer.leave(channel);
-        }
-      });
       var connected = false;
-      peer.on('connection', (stream, info) => {
-        if (!connected) {
+      var listener = (stream, info) => {
+        if (
+          !connected &&
+          info.channel &&
+          info.channel.toString('ascii') === channel
+        ) {
           connected = true;
           cb(null, toPull.duplex(stream), info);
+        }
+      };
+      var closeOnError = err => {
+        if (err) {
+          peer.removeListener('connection', listener);
+          peer.leave(channel);
+          cb(err);
+        }
+      };
+      peer.join(channel, {}, closeOnError);
+      peer.on('connection', listener);
+      peer.on('connection-closed', (conn, info) => {
+        if (info.channel && info.channel.toString('ascii') === channel) {
+          connected = false;
+          closeOnError(new Error('connection lost, channel: ' + channel));
         }
       });
     },
