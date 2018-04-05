@@ -4,7 +4,7 @@ var Pushable = require('pull-pushable');
 var MultiServer = require('multiserver');
 var Dht = require('./index');
 
-test('basic server and client work correctly', function(t) {
+test.skip('basic server and client work correctly', function(t) {
   t.plan(7);
 
   // WEIRD HACK necessary because of how discovery-swarm internally
@@ -70,6 +70,10 @@ test('basic server and client work correctly', function(t) {
 });
 
 test('teardown', function(t) {
+  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.log('Please run example-s.js on one computer');
+  console.log('and example-c.js on another one, to test');
+  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
   t.end();
   process.exit(0);
 });
