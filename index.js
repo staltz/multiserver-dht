@@ -1,7 +1,8 @@
 var toPull = require('stream-to-pull-stream');
 var swarm = require('discovery-swarm');
 
-var peer = undefined;
+var serverPeer = undefined;
+var clientPeers = {};
 
 function createPeer(_opts, onError) {
   var swarmOpts = _opts || {};
@@ -32,21 +33,21 @@ module.exports = function makePlugin(opts) {
         onError(new Error('multiserver-dht is missing a `key` config'));
         return;
       }
-      if (!peer) peer = createPeer(opts, onError);
+      if (!serverPeer) serverPeer = createPeer(opts, onError);
       var listener = (stream, info) => {
         onConnection(toPull.duplex(stream), info);
       };
       var close = () => {
-        peer.removeListener('connection', listener);
-        peer.leave(channel);
+        serverPeer.removeListener('connection', listener);
+        serverPeer.leave(channel);
       };
-      peer.join(channel, {}, err => {
+      serverPeer.join(channel, {}, err => {
         if (err) {
           onError(err);
           close();
         }
       });
-      peer.on('connection', listener);
+      serverPeer.on('connection', listener);
       return close;
     },
 
@@ -61,33 +62,28 @@ module.exports = function makePlugin(opts) {
         onError(new Error('multiserver-dht is missing a `key` config'));
         return;
       }
-      if (!peer) peer = createPeer(clientOpts, cb);
+      if (!clientPeers[channel]) {
+        clientPeers[channel] = createPeer(clientOpts, cb);
+      }
+      var clientPeer = clientPeers[channel];
       var connected = false;
       var listener = (stream, info) => {
-        if (
-          !connected &&
-          info.channel &&
-          info.channel.toString('ascii') === channel
-        ) {
+        if (!connected) {
           connected = true;
           cb(null, toPull.duplex(stream), info);
         }
       };
       var closeOnError = err => {
         if (err) {
-          peer.removeListener('connection', listener);
-          peer.leave(channel);
+          clientPeer.removeListener('connection', listener);
+          clientPeer.leave(channel);
           cb(err);
         }
       };
-      peer.join(channel, {}, closeOnError);
-      peer.on('connection', listener);
-      peer.on('connection-closed', (conn, info) => {
-        if (
-          connected &&
-          info.channel &&
-          info.channel.toString('ascii') === channel
-        ) {
+      clientPeer.join(channel, {}, closeOnError);
+      clientPeer.on('connection', listener);
+      clientPeer.on('connection-closed', (conn, info) => {
+        if (connected) {
           connected = false;
           closeOnError(new Error('connection lost, channel: ' + channel));
         }

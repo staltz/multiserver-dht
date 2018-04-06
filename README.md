@@ -8,8 +8,6 @@ npm install --save multiserver-dht
 
 This module is a multiserver plugin that joins a Distributed Hash Table (DHT) and uses channel keys as "addresses" where peers communicate as clients and as servers.
 
-Only supports one DHT peer _per process_. In other words, the DHT peer is a singleton once the module is imported.
-
 ## Usage
 
 As client:
