@@ -12,8 +12,8 @@ function createPeer(_opts, onError) {
   delete swarmOpts.port;
 
   var sw = swarm(swarmOpts);
-  swarm.once('error', () => {
-    swarm.listen(0);
+  sw.once('error', () => {
+    sw.listen(0);
   });
   sw.listen(port);
   return sw;
