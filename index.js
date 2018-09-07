@@ -127,10 +127,11 @@ module.exports = function makePlugin(opts) {
 
     // MUST be dht:<key>
     parse: function(address) {
+      var parts = address.match(/^([^:]+):(.*)$/);
       var parts = address.split(':');
-      if (parts.length < 2) return null;
-      var name = parts[0];
-      var key = parts[1];
+      if (!parts[1] || !parts[2]) return null;
+      var name = parts[1];
+      var key = parts[2];
       if (name !== 'dht') return null;
       if (!key || typeof key !== 'string') return null;
       return {name: 'dht', key: key};
