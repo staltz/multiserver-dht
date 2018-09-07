@@ -3,7 +3,7 @@ var Pushable = require('pull-pushable');
 var MultiServer = require('multiserver');
 var Dht = require('./index');
 
-var ms = MultiServer([Dht({ key: 'germany' })]);
+var ms = MultiServer([Dht({})]);
 
 ms.client('dht:germany', function(err, stream, info) {
   var pushable = Pushable();
@@ -19,7 +19,7 @@ ms.client('dht:germany', function(err, stream, info) {
     stream,
     pull.drain(buf => {
       console.log('res: ' + buf.toString('utf-8'));
-    }),
+    })
   );
 
   setTimeout(() => pushable.push('alice'), 1000);
