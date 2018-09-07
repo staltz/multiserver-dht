@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "discovery-swarm": "5.1.x",
-    "stream-to-pull-stream": "^1.7.2"
+    "pull-stream": "^3.6.9",
+    "stream-to-pull-stream": "1.7.x"
   },
   "devDependencies": {
     "multiserver": "^1.10.0",
-    "pull-stream": "^3.6.1",
     "pull-pushable": "^2.2.0",
     "tape": "^4.8.0"
   }

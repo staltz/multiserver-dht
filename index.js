@@ -1,11 +1,11 @@
+var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
 var swarm = require('discovery-swarm');
 
-var serverPeer = undefined;
-var clientPeers = {};
-
 function createPeer(_opts) {
   var swarmOpts = _opts || {};
+  delete swarmOpts.key;
+  delete swarmOpts.keys;
   swarmOpts.dns = typeof swarmOpts.dns === 'undefined' ? false : swarmOpts.dns;
 
   var port = swarmOpts.port || 8007;
@@ -25,35 +25,63 @@ function copyIfDefined(propName, origin, destination) {
   }
 }
 
+function hostOnChannel(onError, serverPeer) {
+  return channel => {
+    if (!serverPeer) {
+      var msg = 'Unexpected absence of the DHT server';
+      if (onError) onError(new Error(msg));
+      else console.error(msg);
+      return;
+    }
+
+    serverPeer.join(channel, {}, err => {
+      if (err) {
+        if (onError) onError(err);
+        serverPeers.channels.delete(channel);
+        if (serverPeers.channels.size === 0) {
+          serverPeer.removeListener('connection', serverPeer.listener);
+        }
+        serverPeer.leave(channel);
+      } else {
+        serverPeers.channels.add(channel);
+      }
+    });
+  };
+}
+
 module.exports = function makePlugin(opts) {
+  var serverPeer = undefined;
+  var clientPeers = {};
+
   return {
     name: 'dht',
 
     server: function(onConnection, onError) {
-      var channel = opts.key;
-      delete opts.key;
-      if (!channel) {
+      if (!opts.key && !opts.keys) {
         if (onError) {
-          onError(new Error('multiserver-dht is missing a `key` config'));
+          onError(new Error('multiserver-dht needs a `key` or `keys` config'));
         }
         return;
       }
-      if (!serverPeer) serverPeer = createPeer(opts);
-      var listener = (stream, info) => {
-        onConnection(toPull.duplex(stream), info);
+      if (!serverPeer) {
+        serverPeer = createPeer(opts);
+        serverPeer.listener = (stream, info) => {
+          onConnection(toPull.duplex(stream), info);
+        };
+        serverPeer.channels = new Set();
+        serverPeer.on('connection', serverPeer.listener);
+      }
+
+      pull(
+        opts.key ? pull.values([opts.key]) : opts.keys,
+        pull.drain(hostOnChannel(onError, serverPeer)),
+      );
+
+      return () => {
+        serverPeer.removeListener('connection', serverPeer.listener);
+        serverPeer.channels.forEach(channel => serverPeer.leave(channel));
+        serverPeer.channels.clear();
       };
-      var close = () => {
-        serverPeer.removeListener('connection', listener);
-        serverPeer.leave(channel);
-      };
-      serverPeer.join(channel, {}, err => {
-        if (err) {
-          if (onError) onError(err);
-          close();
-        }
-      });
-      serverPeer.on('connection', listener);
-      return close;
     },
 
     client: function(x, cb) {
@@ -64,7 +92,7 @@ module.exports = function makePlugin(opts) {
       var channel = clientOpts.key;
       delete clientOpts.key;
       if (!channel) {
-        onError(new Error('multiserver-dht is missing a `key` config'));
+        onError(new Error('multiserver-dht needs a `key` in the address'));
         return;
       }
       if (!clientPeers[channel]) {

@@ -62,7 +62,8 @@ ms.server(function(stream) {
 
 Joins a global Distributed Hash Table on the Internet under the channel `opts.key` as the address. The `opts` may include:
 
-* `key` (REQUIRED), a string identifying the channel to be used as address.
+* `key` (REQUIRED unless `keys` is present), a string identifying the channel to be used as address.
+* `keys` (REQUIRED unless `key` is present), a pull-stream of strings that identify all the channels where servers are hosted.
 * `port`, the port on which to listen for connections in the DHT. Default: 8007
 * `id` a string identifying this specific DHT peer. Default: something random
 
