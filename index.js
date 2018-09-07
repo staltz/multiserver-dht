@@ -37,13 +37,13 @@ function hostOnChannel(onError, serverPeer) {
     serverPeer.join(channel, {}, err => {
       if (err) {
         if (onError) onError(err);
-        serverPeers.channels.delete(channel);
-        if (serverPeers.channels.size === 0) {
+        serverPeer.channels.delete(channel);
+        if (serverPeer.channels.size === 0) {
           serverPeer.removeListener('connection', serverPeer.listener);
         }
         serverPeer.leave(channel);
       } else {
-        serverPeers.channels.add(channel);
+        serverPeer.channels.add(channel);
       }
     });
   };
@@ -63,6 +63,8 @@ module.exports = function makePlugin(opts) {
         }
         return;
       }
+      var channel = opts.key;
+      var channels = opts.keys;
       if (!serverPeer) {
         serverPeer = createPeer(opts);
         serverPeer.listener = (stream, info) => {
@@ -73,13 +75,13 @@ module.exports = function makePlugin(opts) {
       }
 
       pull(
-        opts.key ? pull.values([opts.key]) : opts.keys,
-        pull.drain(hostOnChannel(onError, serverPeer)),
+        channel ? pull.values([channel]) : channels,
+        pull.drain(hostOnChannel(onError, serverPeer))
       );
 
       return () => {
         serverPeer.removeListener('connection', serverPeer.listener);
-        serverPeer.channels.forEach(channel => serverPeer.leave(channel));
+        serverPeer.channels.forEach(c => serverPeer.leave(c));
         serverPeer.channels.clear();
       };
     },
