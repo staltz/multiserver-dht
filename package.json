@@ -21,7 +21,7 @@
     "stream-to-pull-stream": "1.7.x"
   },
   "devDependencies": {
-    "multiserver": "^1.10.0",
+    "multiserver": "^1.13.4",
     "pull-pushable": "^2.2.0",
     "tape": "^4.8.0"
   }

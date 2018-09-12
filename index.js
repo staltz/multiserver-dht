@@ -50,11 +50,16 @@ function hostOnChannel(onError, serverPeer) {
 }
 
 module.exports = function makePlugin(opts) {
+  opts = opts || {};
   var serverPeer = undefined;
   var clientPeers = {};
 
   return {
     name: 'dht',
+
+    scope: function() {
+      return opts.scope || 'public';
+    },
 
     server: function(onConnection, onError) {
       if (!opts.key && !opts.keys) {
