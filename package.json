@@ -16,6 +16,7 @@
     "node": ">=6"
   },
   "dependencies": {
+    "dat-swarm-defaults": "^1.0.1",
     "discovery-swarm": "5.1.x",
     "pull-stream": "^3.6.9",
     "stream-to-pull-stream": "1.7.x"

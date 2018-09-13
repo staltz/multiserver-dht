@@ -1,5 +1,6 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
+var datDefaults = require('dat-swarm-defaults');
 var swarm = require('discovery-swarm');
 
 function createPeer(_opts) {
@@ -11,7 +12,7 @@ function createPeer(_opts) {
   var port = swarmOpts.port || 8007;
   delete swarmOpts.port;
 
-  var sw = swarm(swarmOpts);
+  var sw = swarm(datDefaults(swarmOpts));
   sw.once('error', () => {
     sw.listen(0);
   });
