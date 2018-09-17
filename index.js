@@ -4,12 +4,12 @@ var datDefaults = require('dat-swarm-defaults');
 var swarm = require('discovery-swarm');
 
 function createPeer(_opts) {
-  var swarmOpts = _opts || {};
+  var swarmOpts = Object.assign({}, _opts || {});
   delete swarmOpts.key;
   delete swarmOpts.keys;
   swarmOpts.dns = typeof swarmOpts.dns === 'undefined' ? false : swarmOpts.dns;
 
-  var port = swarmOpts.port || 8007;
+  var port = swarmOpts.port || 0;
   delete swarmOpts.port;
 
   var sw = swarm(datDefaults(swarmOpts));
@@ -94,7 +94,7 @@ module.exports = function makePlugin(opts) {
 
     client: function(x, cb) {
       var clientOpts = typeof x === 'string' ? this.parse(x) : x;
-      ['id', 'dns', 'dht', 'utp', 'tcp', 'port'].forEach(name => {
+      ['id', 'dns', 'dht', 'utp', 'tcp'].forEach(name => {
         copyIfDefined(name, opts, clientOpts);
       });
       var channel = clientOpts.key;
