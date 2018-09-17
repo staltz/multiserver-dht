@@ -74,7 +74,9 @@ module.exports = function makePlugin(opts) {
       if (!serverPeer) {
         serverPeer = createPeer(opts);
         serverPeer.listener = (stream, info) => {
-          onConnection(toPull.duplex(stream), info);
+          const s = toPull.duplex(stream);
+          s.meta = 'dht';
+          onConnection(s, info);
         };
         serverPeer.channels = new Set();
         serverPeer.on('connection', serverPeer.listener);
@@ -111,7 +113,9 @@ module.exports = function makePlugin(opts) {
       var listener = (stream, info) => {
         if (!connected) {
           connected = true;
-          cb(null, toPull.duplex(stream), info);
+          const s = toPull.duplex(stream);
+          s.meta = 'dht';
+          cb(null, s, info);
         }
       };
       var closeOnError = err => {
