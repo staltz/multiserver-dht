@@ -103,15 +103,20 @@ module.exports = function makePlugin(opts) {
         onError(new Error('multiserver-dht needs a `key` in the address'));
         return;
       }
-      if (!clientPeers.has(channel)) {
-        clientPeers.set(channel, createPeer(clientOpts, cb));
+      var clientPeer;
+      if (clientPeers.has(channel)) {
+        clientPeer = clientPeers.get(channel);
+      } else {
+        clientPeer = createPeer(clientOpts);
+        clientPeers.set(channel, clientPeer);
       }
-      var clientPeer = clientPeers.get(channel);
-      var connected = false;
+      if (clientPeer.pullstream) {
+        return cb(null, clientPeer.pullstream);
+      }
       var listener = (stream, info) => {
-        if (!connected) {
-          connected = true;
-          cb(null, toPull.duplex(stream), info);
+        if (!clientPeer.pullstream) {
+          clientPeer.pullstream = toPull.duplex(stream);
+          cb(null, clientPeer.pullstream, info);
         }
       };
       var closeOnError = err => {
@@ -119,6 +124,7 @@ module.exports = function makePlugin(opts) {
           clientPeers.delete(channel);
           clientPeer.removeListener('connection', listener);
           clientPeer.leave(channel);
+          clientPeer.pullstream = null;
           clientPeer.close();
           cb(err);
         }
@@ -126,8 +132,7 @@ module.exports = function makePlugin(opts) {
       clientPeer.join(channel, {}, closeOnError);
       clientPeer.on('connection', listener);
       clientPeer.on('connection-closed', (conn, info) => {
-        if (connected) {
-          connected = false;
+        if (clientPeer.pullstream) {
           closeOnError(new Error('connection lost, channel: ' + channel));
         }
       });
