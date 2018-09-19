@@ -149,7 +149,8 @@ module.exports = function makePlugin(opts) {
     },
 
     stringify: function() {
-      return 'dht:' + opts.key;
+      if (opts.key) return 'dht:' + opts.key;
+      else return undefined;
     },
   };
 };
