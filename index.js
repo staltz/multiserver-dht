@@ -26,8 +26,16 @@ function copyIfDefined(propName, origin, destination) {
   }
 }
 
-function hostOnChannel(onError, serverPeer) {
-  return channel => {
+function removeChannel(serverPeer, channel) {
+  serverPeer.channels.delete(channel);
+  if (serverPeer.channels.size === 0) {
+    serverPeer.removeListener('connection', serverPeer.listener);
+  }
+  serverPeer.leave(channel);
+}
+
+function hostChannels(onError, serverPeer) {
+  return channels => {
     if (!serverPeer) {
       var msg = 'Unexpected absence of the DHT server';
       if (onError) onError(new Error(msg));
@@ -35,16 +43,25 @@ function hostOnChannel(onError, serverPeer) {
       return;
     }
 
-    serverPeer.join(channel, {}, err => {
-      if (err) {
-        if (onError) onError(err);
-        serverPeer.channels.delete(channel);
-        if (serverPeer.channels.size === 0) {
-          serverPeer.removeListener('connection', serverPeer.listener);
-        }
-        serverPeer.leave(channel);
-      } else {
+    var newChannels = new Set(channels);
+    var oldChannels = serverPeer.channels;
+
+    // newChannels minus oldChannels => add
+    newChannels.forEach(channel => {
+      if (!oldChannels.has(channel)) {
         serverPeer.channels.add(channel);
+        serverPeer.join(channel, {}, err => {
+          if (!err) return;
+          if (onError) onError(err);
+          removeChannel(serverPeer, channel);
+        });
+      }
+    });
+
+    // oldChannels minus newChannels => remove
+    oldChannels.forEach(channel => {
+      if (!newChannels.has(channel)) {
+        removeChannel(serverPeer, channel);
       }
     });
   };
@@ -70,7 +87,7 @@ module.exports = function makePlugin(opts) {
         return;
       }
       var channel = opts.key;
-      var channels = opts.keys;
+      var channelsPStream = opts.keys;
       if (!serverPeer) {
         serverPeer = createPeer(opts);
         serverPeer.listener = (stream, info) => {
@@ -83,8 +100,8 @@ module.exports = function makePlugin(opts) {
       }
 
       pull(
-        channel ? pull.values([channel]) : channels,
-        pull.drain(hostOnChannel(onError, serverPeer))
+        channel ? pull.values([[channel]]) : channelsPStream,
+        pull.drain(hostChannels(onError, serverPeer))
       );
 
       return () => {
