@@ -1,6 +1,7 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
 var network = require('@hyperswarm/network');
+var crypto = require('crypto');
 
 function hostChannels(serverNet, serverChannels) {
   return channels => {
@@ -11,7 +12,7 @@ function hostChannels(serverNet, serverChannels) {
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
         serverChannels.add(channel);
-        serverNet.join(Buffer.from(channel), {lookup: true, announce: true});
+        serverNet.join(channelToTopic(channel), {lookup: true, announce: true});
       }
     });
 
@@ -19,10 +20,17 @@ function hostChannels(serverNet, serverChannels) {
     oldChannels.forEach(channel => {
       if (!newChannels.has(channel)) {
         serverChannels.delete(channel);
-        serverNet.leave(Buffer.from(channel));
+        serverNet.leave(channelToTopic(channel));
       }
     });
   };
+}
+
+function channelToTopic(channel) {
+  return crypto
+    .createHash('sha256')
+    .update(channel)
+    .digest();
 }
 
 module.exports = function makePlugin(opts) {
@@ -61,7 +69,7 @@ module.exports = function makePlugin(opts) {
       );
 
       return () => {
-        serverChannels.forEach(c => serverNet.leave(Buffer.from(c)));
+        serverChannels.forEach(c => serverNet.leave(channelToTopic(c)));
         serverChannels.clear();
       };
     },
@@ -99,7 +107,7 @@ module.exports = function makePlugin(opts) {
           cb(null, stream);
         });
       }
-      var topic = Buffer.from(channel);
+      var topic = channelToTopic(channel);
       clientTopicToCb.set(topic, cb);
       clientNet.join(topic);
     },
