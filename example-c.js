@@ -5,7 +5,7 @@ var Dht = require('./index');
 
 var ms = MultiServer([Dht({})]);
 
-ms.client('dht:germany', function(err, stream, info) {
+ms.client('dht:jamaica', function(err, stream, info) {
   var pushable = Pushable();
   if (err) {
     console.error(err);
