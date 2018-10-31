@@ -1,6 +1,6 @@
 {
   "name": "multiserver-dht",
-  "version": "4.0.0",
+  "version": "5.0.0-rc.1",
   "description": "A multiserver plugin that uses a Distributed Hash Table",
   "main": "index.js",
   "repository": {
@@ -16,8 +16,7 @@
     "node": ">=6"
   },
   "dependencies": {
-    "dat-swarm-defaults": "^1.0.1",
-    "discovery-swarm": "5.1.x",
+    "@hyperswarm/network": "0.0.4",
     "pull-stream": "^3.6.9",
     "stream-to-pull-stream": "1.7.x"
   },
