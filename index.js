@@ -92,8 +92,8 @@ module.exports = function makePlugin(opts) {
         return;
       }
       if (!clientNet) {
-        debug('clientNet created, as ephemeral node');
-        clientNet = network({ephemeral: true});
+        debug('clientNet created, as non-ephemeral node');
+        clientNet = network({ephemeral: false});
         clientNet.on('connection', (socket, details) => {
           debug('clientNet got a %s connection', details.type);
           if (!details.client) {
