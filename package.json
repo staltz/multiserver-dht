@@ -18,6 +18,7 @@
   "dependencies": {
     "@hyperswarm/network": "0.0.4",
     "pull-stream": "^3.6.9",
+    "debug": "4.1.0",
     "stream-to-pull-stream": "1.7.x"
   },
   "devDependencies": {

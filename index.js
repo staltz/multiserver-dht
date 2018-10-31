@@ -2,6 +2,7 @@ var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
 var network = require('@hyperswarm/network');
 var crypto = require('crypto');
+var debug = require('debug')('multiserver-dht');
 
 function hostChannels(serverNet, serverChannels) {
   return channels => {
@@ -12,14 +13,10 @@ function hostChannels(serverNet, serverChannels) {
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
         serverChannels.add(channel);
-        console.log(
-          'serverNet will join channel ' +
-            channel +
-            ' (' +
-            channelToTopic(channel).toString('hex') +
-            ')'
-        );
-        serverNet.join(channelToTopic(channel), {lookup: true, announce: true});
+        var topic = channelToTopic(channel);
+        var hexTopic = topic.toString('hex');
+        debug('serverNet joining channel %s (%s)', channel, hexTopic);
+        serverNet.join(topic, {lookup: true, announce: true});
       }
     });
 
@@ -27,14 +24,10 @@ function hostChannels(serverNet, serverChannels) {
     oldChannels.forEach(channel => {
       if (!newChannels.has(channel)) {
         serverChannels.delete(channel);
-        console.log(
-          'serverNet will LEAVE channel ' +
-            channel +
-            ' (' +
-            channelToTopic(channel).toString('hex') +
-            ')'
-        );
-        serverNet.leave(channelToTopic(channel));
+        var topic = channelToTopic(channel);
+        var hexTopic = topic.toString('hex');
+        debug('serverNet leaving channel %s (%s)', channel, hexTopic);
+        serverNet.leave(topic);
       }
     });
   };
@@ -71,8 +64,9 @@ module.exports = function makePlugin(opts) {
       var channelsPStream = opts.keys;
 
       var serverNet = network({ephemeral: false});
-      serverNet.on('connection', (socket, _details) => {
-        console.log('serverNet got a connection');
+      debug('new serverNet created, as non-ephemeral node');
+      serverNet.on('connection', (socket, details) => {
+        debug('serverNet got a %s connection', details.type);
         var stream = toPull.duplex(socket);
         stream.meta = 'dht';
         onConnection(stream);
@@ -84,6 +78,7 @@ module.exports = function makePlugin(opts) {
       );
 
       return () => {
+        debug('server shutting down');
         serverChannels.forEach(c => serverNet.leave(channelToTopic(c)));
         serverChannels.clear();
       };
@@ -97,10 +92,10 @@ module.exports = function makePlugin(opts) {
         return;
       }
       if (!clientNet) {
-        console.log('clientNet was created');
+        debug('clientNet created, as ephemeral node');
         clientNet = network({ephemeral: true});
         clientNet.on('connection', (socket, details) => {
-          console.log('clientNet got a connection');
+          debug('clientNet got a %s connection', details.type);
           if (!details.client) {
             cb(
               new Error(
@@ -125,14 +120,9 @@ module.exports = function makePlugin(opts) {
         });
       }
       var topic = channelToTopic(channel);
+      var hexTopic = topic.toString('hex');
       clientTopicToCb.set(topic, cb);
-      console.log(
-        'clientNet will join channel ' +
-          channel +
-          ' (' +
-          topic.toString('hex') +
-          ')'
-      );
+      debug('clientNet joining channel %s (%s)', channel, hexTopic);
       clientNet.join(topic);
     },
 
