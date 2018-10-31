@@ -6,7 +6,7 @@ _A [multiserver](https://github.com/ssbc/multiserver) plugin that uses a Distrib
 npm install --save multiserver-dht
 ```
 
-This module is a multiserver plugin that joins a Distributed Hash Table (DHT) and uses channel keys as "addresses" where peers communicate as clients and as servers.
+This module is a multiserver plugin that joins a Distributed Hash Table (DHT) and uses channel keys as "addresses" where peers communicate as clients and as servers. Uses [hyperswarm](https://github.com/hyperswarm) under the hood.
 
 ## Usage
 
@@ -64,7 +64,5 @@ Joins a global Distributed Hash Table on the Internet under the channel `opts.ke
 
 * `key` (REQUIRED unless `keys` is present), a string identifying the channel to be used as address.
 * `keys` (REQUIRED unless `key` is present), a pull-stream of arrays of strings that identify all the channels where servers are hosted.
-* `port`, the port on which to listen for connections in the DHT. Default: 8007
-* `id` a string identifying this specific DHT peer. Default: something random
 
 Returns a multiserver plugin.
