@@ -97,26 +97,20 @@ module.exports = function makePlugin(opts) {
         clientNet.on('connection', (socket, details) => {
           debug('clientNet got a %s connection', details.type);
           if (!details.client) {
-            cb(
-              new Error(
-                'client connection was accidentally a server connection'
-              )
-            );
+            debug('ERR client connection was accidentally a server connection');
             return;
           }
-          var cb = clientTopicToCb.get(details.peer.topic);
-          if (!cb) {
-            cb(
-              new Error(
-                'no client handler was registered for topic: ' +
-                  (details.peer.topic || 'undefined').toString()
-              )
+          var callback = clientTopicToCb.get(details.peer.topic);
+          if (!callback) {
+            debug(
+              'no client handler was registered for topic: ' +
+                (details.peer.topic || 'undefined').toString()
             );
             return;
           }
           var stream = toPull.duplex(socket);
           stream.meta = 'dht';
-          cb(null, stream);
+          callback(null, stream);
         });
       }
       var topic = channelToTopic(channel);
