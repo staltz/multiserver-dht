@@ -95,6 +95,7 @@ module.exports = function makePlugin(opts) {
           s.meta = 'dht';
           if (info.channel) s.address = 'dht:' + info.channel;
           else if (s.channel) s.address = 'dht:' + s.channel.toString('ascii');
+          else s.address = 'dht:undefined';
           onConnection(s, info);
         };
         serverPeer.channels = new Set();
