@@ -93,6 +93,8 @@ module.exports = function makePlugin(opts) {
         serverPeer.listener = (stream, info) => {
           const s = toPull.duplex(stream);
           s.meta = 'dht';
+          if (info.channel) s.address = 'dht:' + info.channel;
+          else if (s.channel) s.address = 'dht:' + s.channel.toString('ascii');
           onConnection(s, info);
         };
         serverPeer.channels = new Set();
