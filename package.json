@@ -1,6 +1,6 @@
 {
   "name": "multiserver-dht",
-  "version": "5.0.0-rc.2",
+  "version": "5.0.0-rc.3",
   "description": "A multiserver plugin that uses a Distributed Hash Table",
   "main": "index.js",
   "repository": {
