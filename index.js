@@ -79,6 +79,7 @@ module.exports = function makePlugin(opts) {
             onConnection(stream);
           });
         }
+        return channelsArr;
       }
 
       function lazilyDestroyServerSwarm(amountChannels) {
