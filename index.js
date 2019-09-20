@@ -1,35 +1,43 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
-var network = require('@hyperswarm/network');
+var hyperswarm = require('hyperswarm');
 var crypto = require('crypto');
 var debug = require('debug')('multiserver-dht');
 
-function hostChannels(serverNet, serverChannels) {
-  return channels => {
-    var newChannels = new Set(channels);
-    var oldChannels = serverChannels;
+function updateChannelsToHost(serverCfg) {
+  return channelsArr => {
+    if (!serverCfg.swarm) {
+      console.error('Unexpected absence of the local DHT node');
+      return 1;
+    }
 
-    // newChannels minus oldChannels => add
+    var amount = channelsArr.length;
+    var newChannels = new Set(channelsArr);
+    var oldChannels = serverCfg.channels;
+
+    // newChannels minus oldChannels => join
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
-        serverChannels.add(channel);
+        serverCfg.channels.add(channel);
         var topic = channelToTopic(channel);
         var hexTopic = topic.toString('hex');
         debug('serverNet joining channel %s (%s)', channel, hexTopic);
-        serverNet.join(topic, {lookup: true, announce: true});
+        serverCfg.swarm.join(topic, {lookup: true, announce: true});
       }
     });
 
-    // oldChannels minus newChannels => remove
+    // oldChannels minus newChannels => leave
     oldChannels.forEach(channel => {
       if (!newChannels.has(channel)) {
-        serverChannels.delete(channel);
+        serverCfg.channels.delete(channel);
         var topic = channelToTopic(channel);
         var hexTopic = topic.toString('hex');
         debug('serverNet leaving channel %s (%s)', channel, hexTopic);
-        serverNet.leave(topic);
+        serverCfg.swarm.leave(topic);
       }
     });
+
+    return amount;
   };
 }
 
@@ -42,9 +50,8 @@ function channelToTopic(channel) {
 
 module.exports = function makePlugin(opts) {
   opts = opts || {};
-  var serverChannels = new Set();
-  var clientNet = undefined;
-  var clientTopicToCb = new Map();
+  var serverCfg = {swarm: undefined, channels: new Set()};
+  var clientCfg = {swarm: undefined, topicToInfo: new Map()};
 
   return {
     name: 'dht',
@@ -60,27 +67,46 @@ module.exports = function makePlugin(opts) {
         }
         return;
       }
-      var channel = opts.key;
-      var channelsPStream = opts.keys;
 
-      var serverNet = network({ephemeral: false});
-      debug('new serverNet created, as non-ephemeral node');
-      serverNet.on('connection', (socket, details) => {
-        debug('serverNet got a %s connection', details.type);
-        var stream = toPull.duplex(socket);
-        stream.meta = 'dht';
-        onConnection(stream);
-      });
+      function lazilyCreateServerSwarm(channelsArr) {
+        if (!serverCfg.swarm && channelsArr.length > 0) {
+          serverCfg.swarm = hyperswarm({ephemeral: false, maxPeers: 1});
+          debug('new serverNet created, as non-ephemeral node');
+          serverCfg.swarm.on('connection', (socket, details) => {
+            debug('serverNet got a %s connection', details.type);
+            var stream = toPull.duplex(socket);
+            stream.meta = 'dht';
+            onConnection(stream);
+          });
+        }
+      }
+
+      function lazilyDestroyServerSwarm(amountChannels) {
+        if (amountChannels === 0 && !!serverCfg.swarm) {
+          serverCfg.swarm.destroy(() => {
+            serverCfg.swarm = undefined;
+          });
+        }
+      }
+
+      var channelsPStream = opts.key ? pull.values([[opts.key]]) : opts.keys;
 
       pull(
-        channel ? pull.values([[channel]]) : channelsPStream,
-        pull.drain(hostChannels(serverNet, serverChannels))
+        channelsPStream,
+        pull.map(lazilyCreateServerSwarm),
+        pull.map(updateChannelsToHost(serverCfg)),
+        pull.map(lazilyDestroyServerSwarm),
+        pull.drain()
       );
 
       return () => {
         debug('server shutting down');
-        serverChannels.forEach(c => serverNet.leave(channelToTopic(c)));
-        serverChannels.clear();
+        if (serverCfg.swarm) {
+          serverCfg.channels.forEach(c => {
+            serverCfg.swarm.leave(channelToTopic(c));
+          });
+        }
+        serverCfg.channels.clear();
       };
     },
 
@@ -91,17 +117,17 @@ module.exports = function makePlugin(opts) {
         onError(new Error('multiserver-dht needs a `key` in the address'));
         return;
       }
-      if (!clientNet) {
+      if (!clientCfg.swarm) {
         debug('clientNet created, as non-ephemeral node');
-        clientNet = network({ephemeral: false});
-        clientNet.on('connection', (socket, details) => {
+        clientCfg.swarm = hyperswarm({ephemeral: false, maxPeers: 1});
+        clientCfg.swarm.on('connection', (socket, details) => {
           debug('clientNet got a %s connection', details.type);
           if (!details.client) {
             debug('ERR client connection was accidentally a server connection');
             return;
           }
-          var callback = clientTopicToCb.get(details.peer.topic);
-          if (!callback) {
+          var info = clientCfg.topicToInfo.get(details.peer.topic);
+          if (!info) {
             debug(
               'no client handler was registered for topic: ' +
                 (details.peer.topic || 'undefined').toString()
@@ -110,14 +136,28 @@ module.exports = function makePlugin(opts) {
           }
           var stream = toPull.duplex(socket);
           stream.meta = 'dht';
-          callback(null, stream);
+          stream.address = 'dht:' + info.channel;
+          info.callback(null, stream);
         });
       }
+
       var topic = channelToTopic(channel);
+      clientCfg.topicToInfo.set(topic, {callback: cb, channel: channel});
       var hexTopic = topic.toString('hex');
-      clientTopicToCb.set(topic, cb);
       debug('clientNet joining channel %s (%s)', channel, hexTopic);
-      clientNet.join(topic);
+      clientCfg.swarm.join(topic);
+
+      return function() {
+        clientCfg.topicToInfo.delete(topic);
+        if (!!clientCfg.swarm) {
+          clientCfg.swarm.leave(topic);
+          if (clientCfg.topicToInfo.size === 0) {
+            clientCfg.swarm.destroy(() => {
+              clientCfg.swarm = undefined;
+            });
+          }
+        }
+      };
     },
 
     // MUST be dht:<key>

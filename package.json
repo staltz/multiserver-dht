@@ -16,13 +16,13 @@
     "node": ">=6"
   },
   "dependencies": {
-    "@hyperswarm/network": "0.0.4",
+    "hyperswarm": "2.1.0",
     "pull-stream": "^3.6.9",
     "debug": "4.1.0",
     "stream-to-pull-stream": "1.7.x"
   },
   "devDependencies": {
-    "multiserver": "^1.13.4",
+    "multiserver": "^3.4.0",
     "pull-pushable": "^2.2.0",
     "tape": "^4.8.0"
   }
