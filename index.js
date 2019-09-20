@@ -67,7 +67,6 @@ function updateChannelsToHost(onError, serverCfg) {
 module.exports = function makePlugin(opts) {
   opts = opts || {};
   var serverCfg = {peer: null, channels: new Set(), listener: null};
-  var clientPeers = new Map();
 
   return {
     name: 'dht',
@@ -144,22 +143,19 @@ module.exports = function makePlugin(opts) {
         onError(new Error('multiserver-dht needs a `key` in the address'));
         return;
       }
-      if (!clientPeers.has(channel)) {
-        clientPeers.set(channel, createPeer(clientOpts, cb));
-      }
-      var clientPeer = clientPeers.get(channel);
+      var clientPeer = createPeer(clientOpts, cb);
       var connected = false;
       var listener = (stream, info) => {
         if (!connected) {
           connected = true;
           const s = toPull.duplex(stream);
           s.meta = 'dht';
+          s.address = 'dht:' + channel;
           cb(null, s, info);
         }
       };
       var closeOnError = err => {
         if (err) {
-          clientPeers.delete(channel);
           clientPeer.removeListener('connection', listener);
           clientPeer.leave(channel);
           clientPeer.close();
@@ -174,6 +170,10 @@ module.exports = function makePlugin(opts) {
           closeOnError(new Error('connection lost, channel: ' + channel));
         }
       });
+
+      return () => {
+        clientPeer.close();
+      };
     },
 
     // MUST be dht:<key>
