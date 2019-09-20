@@ -26,43 +26,37 @@ function copyIfDefined(propName, origin, destination) {
   }
 }
 
-function removeChannel(serverPeer, channel) {
-  serverPeer.channels.delete(channel);
-  if (serverPeer.channels.size === 0) {
-    serverPeer.removeListener('connection', serverPeer.listener);
-  }
-  serverPeer.leave(channel);
-}
-
-function updateChannelsToHost(onError, serverPeer) {
-  return channels => {
-    if (!serverPeer) {
+function updateChannelsToHost(onError, serverCfg) {
+  return channelsArr => {
+    if (!serverCfg.peer) {
       var msg = 'Unexpected absence of the DHT server';
       if (onError) onError(new Error(msg));
       else console.error(msg);
       return 1;
     }
 
-    var amount = channels.length;
-    var newChannels = new Set(channels);
-    var oldChannels = serverPeer.channels;
+    var amount = channelsArr.length;
+    var newChannels = new Set(channelsArr);
+    var oldChannels = serverCfg.channels;
 
-    // newChannels minus oldChannels => add
+    // newChannels minus oldChannels => join
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
-        serverPeer.channels.add(channel);
-        serverPeer.join(channel, {}, err => {
+        serverCfg.channels.add(channel);
+        serverCfg.peer.join(channel, {}, err => {
           if (!err) return;
           if (onError) onError(err);
-          removeChannel(serverPeer, channel);
+          serverCfg.channels.delete(channel);
+          serverCfg.peer.leave(channel);
         });
       }
     });
 
-    // oldChannels minus newChannels => remove
+    // oldChannels minus newChannels => leave
     oldChannels.forEach(channel => {
       if (!newChannels.has(channel)) {
-        removeChannel(serverPeer, channel);
+        serverCfg.channels.delete(channel);
+        serverCfg.peer.leave(channel);
       }
     });
 
@@ -72,7 +66,7 @@ function updateChannelsToHost(onError, serverPeer) {
 
 module.exports = function makePlugin(opts) {
   opts = opts || {};
-  var serverPeer = undefined;
+  var serverCfg = {peer: null, channels: new Set(), listener: null};
   var clientPeers = new Map();
 
   return {
@@ -91,28 +85,30 @@ module.exports = function makePlugin(opts) {
       }
 
       function lazilyCreateServerPeer(channelsArr) {
-        if (!serverPeer && channelsArr.length > 0) {
-          serverPeer = createPeer(opts);
-          serverPeer.listener = (stream, info) => {
-            const s = toPull.duplex(stream);
-            s.meta = 'dht';
-            if (info.channel) s.address = 'dht:' + info.channel;
-            else if (s.channel)
-              s.address = 'dht:' + s.channel.toString('ascii');
-            else s.address = 'dht:undefined';
-            onConnection(s, info);
+        if (channelsArr.length > 0 && !serverCfg.peer) {
+          serverCfg.peer = createPeer(opts);
+          serverCfg.listener = (socket, info) => {
+            const stream = toPull.duplex(socket);
+            stream.meta = 'dht';
+            stream.address = info.channel
+              ? 'dht:' + info.channel
+              : stream.channel
+              ? 'dht:' + stream.channel.toString('ascii')
+              : 'dht:unknown';
+            onConnection(stream, info);
           };
-          serverPeer.channels = new Set();
-          serverPeer.on('connection', serverPeer.listener);
+          serverCfg.peer.on('connection', serverCfg.listener);
         }
+        return channelsArr;
       }
 
       function lazilyDestroyServerPeer(amountChannels) {
-        if (amountChannels === 0 && !!serverPeer) {
-          serverPeer.close(() => {
-            serverPeer = undefined;
+        if (amountChannels === 0 && !!serverCfg.peer) {
+          serverCfg.peer.close(() => {
+            serverCfg.peer = null;
           });
         }
+        return amountChannels;
       }
 
       var channelsPStream = opts.key ? pull.values([[opts.key]]) : opts.keys;
@@ -120,15 +116,20 @@ module.exports = function makePlugin(opts) {
       pull(
         channelsPStream,
         pull.map(lazilyCreateServerPeer),
-        pull.map(updateChannelsToHost(onError, serverPeer)),
+        pull.map(updateChannelsToHost(onError, serverCfg)),
         pull.map(lazilyDestroyServerPeer),
         pull.drain()
       );
 
       return () => {
-        serverPeer.removeListener('connection', serverPeer.listener);
-        serverPeer.channels.forEach(c => serverPeer.leave(c));
-        serverPeer.channels.clear();
+        if (!!serverCfg.peer) {
+          serverCfg.channels.forEach(c => serverCfg.peer.leave(c));
+          serverCfg.peer.removeListener('connection', serverCfg.listener);
+          serverCfg.peer.close(() => {
+            serverCfg.peer = null;
+          });
+        }
+        serverCfg.channels.clear();
       };
     },
 
