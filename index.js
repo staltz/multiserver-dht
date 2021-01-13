@@ -1,22 +1,15 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
 var datDefaults = require('dat-swarm-defaults');
-var swarm = require('discovery-swarm');
+var swarm = require('hyperswarm');
+var crypto = require('crypto');
 
 function createPeer(_opts) {
   var swarmOpts = Object.assign({}, _opts || {});
   delete swarmOpts.key;
   delete swarmOpts.keys;
-  swarmOpts.dns = typeof swarmOpts.dns === 'undefined' ? false : swarmOpts.dns;
-
-  var port = swarmOpts.port || 0;
-  delete swarmOpts.port;
 
   var sw = swarm(datDefaults(swarmOpts));
-  sw.once('error', () => {
-    sw.listen(0);
-  });
-  sw.listen(port);
   return sw;
 }
 
@@ -43,12 +36,7 @@ function updateChannelsToHost(onError, serverCfg) {
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
         serverCfg.channels.add(channel);
-        serverCfg.peer.join(channel, {}, err => {
-          if (!err) return;
-          if (onError) onError(err);
-          serverCfg.channels.delete(channel);
-          serverCfg.peer.leave(channel);
-        });
+        serverCfg.peer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: false, announce: true });
       }
     });
 
@@ -56,7 +44,7 @@ function updateChannelsToHost(onError, serverCfg) {
     oldChannels.forEach(channel => {
       if (!newChannels.has(channel)) {
         serverCfg.channels.delete(channel);
-        serverCfg.peer.leave(channel);
+        serverCfg.peer.leave(crypto.createHash('sha256').update(channel).digest());
       }
     });
 
@@ -85,6 +73,7 @@ module.exports = function makePlugin(opts) {
 
       function lazilyCreateServerPeer(channelsArr) {
         if (channelsArr.length > 0 && !serverCfg.peer) {
+	  opts.ephemeral = false;
           serverCfg.peer = createPeer(opts);
           serverCfg.listener = (socket, info) => {
             const stream = toPull.duplex(socket);
@@ -122,7 +111,7 @@ module.exports = function makePlugin(opts) {
 
       return () => {
         if (!!serverCfg.peer) {
-          serverCfg.channels.forEach(c => serverCfg.peer.leave(c));
+          serverCfg.channels.forEach(c => serverCfg.peer.leave(crypto.createHash('sha256').update(c).digest()));
           serverCfg.peer.removeListener('connection', serverCfg.listener);
           serverCfg.peer.close(() => {
             serverCfg.peer = null;
@@ -143,6 +132,8 @@ module.exports = function makePlugin(opts) {
         onError(new Error('multiserver-dht needs a `key` in the address'));
         return;
       }
+      // Use ephemeral mode for the client so it works in a web browser context.
+      clientOpts.ephemeral = true;
       var clientPeer = createPeer(clientOpts, cb);
       var connected = false;
       var listener = (stream, info) => {
@@ -157,12 +148,11 @@ module.exports = function makePlugin(opts) {
       var closeOnError = err => {
         if (err) {
           clientPeer.removeListener('connection', listener);
-          clientPeer.leave(channel);
-          clientPeer.close();
+          clientPeer.leave(crypto.createHash('sha256').update(channel).digest());
           cb(err);
         }
       };
-      clientPeer.join(channel, {}, closeOnError);
+      clientPeer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: true, announce: false });
       clientPeer.on('connection', listener);
       clientPeer.on('connection-closed', (conn, info) => {
         if (connected) {
@@ -172,7 +162,6 @@ module.exports = function makePlugin(opts) {
       });
 
       return () => {
-        clientPeer.close();
       };
     },
 
