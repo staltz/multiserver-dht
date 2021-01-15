@@ -3,7 +3,7 @@ var MultiServer = require('multiserver');
 var Dht = require('./index');
 
 // var ms = MultiServer([Dht({keys: pull.values(['brazil', 'germany'])})]);
-var ms = MultiServer([Dht({key: 'brazil'})]);
+var ms = MultiServer([Dht({key: 'germany'})]);
 
 ms.server(function(stream, info) {
   console.log('server got a client');
