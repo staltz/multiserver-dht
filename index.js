@@ -1,13 +1,15 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
 var datDefaults = require('dat-swarm-defaults');
-var swarm = require('hyperswarm');
+var swarm = require('hyperswarm-web');
 var crypto = require('crypto');
 
 function createPeer(_opts) {
   var swarmOpts = Object.assign({}, _opts || {});
   delete swarmOpts.key;
   delete swarmOpts.keys;
+
+  swarmOpts.bootstrap = ['ws://hyperswarm.mauve.moe']
 
   var sw = swarm(datDefaults(swarmOpts));
   return sw;
