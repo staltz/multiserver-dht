@@ -16,7 +16,6 @@
     "node": ">=6"
   },
   "dependencies": {
-    "dat-swarm-defaults": "^1.0.1",
     "hyperswarm": "^2.15.2",
     "hyperswarm-web": "^2.1.1",
     "pull-stream": "^3.6.9",

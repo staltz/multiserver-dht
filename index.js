@@ -1,18 +1,18 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
-var datDefaults = require('dat-swarm-defaults');
 var swarm = require('hyperswarm');
 var crypto = require('crypto');
+
+function channelToBuf(channel) {
+  return crypto.createHash('sha256').update(channel).digest()
+}
 
 function createPeer(_opts) {
   var swarmOpts = Object.assign({}, _opts || {});
   delete swarmOpts.key;
   delete swarmOpts.keys;
 
-  //swarmOpts.bootstrap = ['ws://hyperswarm.mauve.moe']
-  //swarmOpts.bootstrap = ['ws://localhost:4977']
-
-  var sw = swarm(swarmOpts) //swarm(datDefaults(swarmOpts));
+  var sw = swarm(swarmOpts)
   return sw;
 }
 
@@ -39,7 +39,7 @@ function updateChannelsToHost(onError, serverCfg) {
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
         serverCfg.channels.add(channel);
-        serverCfg.peer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: true, announce: true });
+        serverCfg.peer.join(channelToBuf(channel), { lookup: true, announce: true });
       }
     });
 
@@ -47,7 +47,7 @@ function updateChannelsToHost(onError, serverCfg) {
     oldChannels.forEach(channel => {
       if (!newChannels.has(channel)) {
         serverCfg.channels.delete(channel);
-        serverCfg.peer.leave(crypto.createHash('sha256').update(channel).digest());
+        serverCfg.peer.leave(channelToBuf(channel));
       }
     });
 
@@ -114,7 +114,7 @@ module.exports = function makePlugin(opts) {
 
       return () => {
         if (!!serverCfg.peer) {
-          serverCfg.channels.forEach(c => serverCfg.peer.leave(crypto.createHash('sha256').update(c).digest()));
+          serverCfg.channels.forEach(c => serverCfg.peer.leave(channelToBuf(c)));
           serverCfg.peer.removeListener('connection', serverCfg.listener);
           serverCfg.peer.close(() => {
             serverCfg.peer = null;
@@ -151,11 +151,11 @@ module.exports = function makePlugin(opts) {
       var closeOnError = err => {
         if (err) {
           clientPeer.removeListener('connection', listener);
-          clientPeer.leave(crypto.createHash('sha256').update(channel).digest());
+          clientPeer.leave(channelToBuf(channel));
           cb(err);
         }
       };
-      clientPeer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: true, announce: true });
+      clientPeer.join(channelToBuf(channel), { lookup: true, announce: true });
       clientPeer.on('connection', listener);
       clientPeer.on('connection-closed', (conn, info) => {
         if (connected) {
