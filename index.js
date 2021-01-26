@@ -76,7 +76,7 @@ module.exports = function makePlugin(opts) {
 
       function lazilyCreateServerPeer(channelsArr) {
         if (channelsArr.length > 0 && !serverCfg.peer) {
-	  opts.ephemeral = false;
+          opts.ephemeral = false;
           serverCfg.peer = createPeer(opts);
           serverCfg.listener = (socket, info) => {
             const stream = toPull.duplex(socket);
@@ -152,6 +152,7 @@ module.exports = function makePlugin(opts) {
         if (err) {
           clientPeer.removeListener('connection', listener);
           clientPeer.leave(channelToBuf(channel));
+          clientPeer.destroy((err) => {})
           cb(err);
         }
       };
@@ -165,6 +166,7 @@ module.exports = function makePlugin(opts) {
       });
 
       return () => {
+        clientPeer.destroy((err) => {})
       };
     },
 
