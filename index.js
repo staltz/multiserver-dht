@@ -1,7 +1,7 @@
 var pull = require('pull-stream');
 var toPull = require('stream-to-pull-stream');
 var datDefaults = require('dat-swarm-defaults');
-var swarm = require('hyperswarm-web');
+var swarm = require('hyperswarm');
 var crypto = require('crypto');
 
 function createPeer(_opts) {
@@ -9,9 +9,10 @@ function createPeer(_opts) {
   delete swarmOpts.key;
   delete swarmOpts.keys;
 
-  swarmOpts.bootstrap = ['ws://hyperswarm.mauve.moe']
+  //swarmOpts.bootstrap = ['ws://hyperswarm.mauve.moe']
+  //swarmOpts.bootstrap = ['ws://localhost:4977']
 
-  var sw = swarm(datDefaults(swarmOpts));
+  var sw = swarm(swarmOpts) //swarm(datDefaults(swarmOpts));
   return sw;
 }
 
@@ -38,7 +39,7 @@ function updateChannelsToHost(onError, serverCfg) {
     newChannels.forEach(channel => {
       if (!oldChannels.has(channel)) {
         serverCfg.channels.add(channel);
-        serverCfg.peer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: false, announce: true });
+        serverCfg.peer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: true, announce: true });
       }
     });
 
@@ -154,7 +155,7 @@ module.exports = function makePlugin(opts) {
           cb(err);
         }
       };
-      clientPeer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: true, announce: false });
+      clientPeer.join(crypto.createHash('sha256').update(channel).digest(), { lookup: true, announce: true });
       clientPeer.on('connection', listener);
       clientPeer.on('connection-closed', (conn, info) => {
         if (connected) {
