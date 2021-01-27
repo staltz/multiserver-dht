@@ -16,8 +16,8 @@
     "node": ">=6"
   },
   "dependencies": {
-    "dat-swarm-defaults": "^1.0.1",
-    "discovery-swarm": "~6.0.0",
+    "hyperswarm": "^2.15.2",
+    "hyperswarm-web": "^2.1.1",
     "pull-stream": "^3.6.9",
     "stream-to-pull-stream": "1.7.x"
   },
@@ -25,5 +25,8 @@
     "multiserver": "^1.13.4",
     "pull-pushable": "^2.2.0",
     "tape": "^4.8.0"
+  },
+  "browser": {
+    "hyperswarm": "hyperswarm-web"
   }
 }
